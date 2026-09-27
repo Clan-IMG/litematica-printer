@@ -17,6 +17,7 @@ public class PrepareAction extends Action {
     public boolean modifyPitch = true;
     public float yaw = 0;
     public float pitch = 0;
+    private boolean inventorySelectionChanged = false;
 
     public PrepareAction(PrinterPlacementContext context) {
         this.context = context;
@@ -48,6 +49,7 @@ public class PrepareAction extends Action {
 
     @Override
     public void send(MinecraftClient client, ClientPlayerEntity player) {
+        inventorySelectionChanged = false;
         ItemStack itemStack = context.getStack();
         int slot = context.requiredItemSlot;
 
@@ -59,11 +61,16 @@ public class PrepareAction extends Action {
                 inventory.addPickBlock(itemStack);
                 client.interactionManager.clickCreativeStack(player.getStackInHand(Hand.MAIN_HAND),
                         36 + inventory.selectedSlot);
+                inventorySelectionChanged = true;
             } else if (slot != -1) {
                 if (PlayerInventory.isValidHotbarIndex(slot)) {
-                    inventory.selectedSlot = slot;
+                    if (inventory.selectedSlot != slot) {
+                        inventory.selectedSlot = slot;
+                        inventorySelectionChanged = true;
+                    }
                 } else {
                     client.interactionManager.pickFromInventory(slot);
+                    inventorySelectionChanged = true;
                 }
             }
         }
@@ -85,6 +92,11 @@ public class PrepareAction extends Action {
             player.input.playerInput = new PlayerInput(player.input.playerInput.forward(), player.input.playerInput.backward(), player.input.playerInput.left(), player.input.playerInput.right(), player.input.playerInput.jump(), false, player.input.playerInput.sprint());
             player.networkHandler.sendPacket(new ClientCommandC2SPacket(player, ClientCommandC2SPacket.Mode.RELEASE_SHIFT_KEY));
         }
+    }
+
+    @Override
+    public int getPostActionDelayTicks() {
+        return inventorySelectionChanged ? 1 : 0;
     }
 
     @Override
