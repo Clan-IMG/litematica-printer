@@ -22,8 +22,14 @@ public class ActionHandler {
     }
 
     private int tick = 0;
+    private int postActionDelayTicks = 0;
 
     public void onGameTick() {
+        if (postActionDelayTicks > 0) {
+            postActionDelayTicks--;
+            return;
+        }
+
         int tickRate = Configs.PRINTING_INTERVAL.getIntegerValue();
         tick = tick % tickRate == tickRate - 1 ? 0 : tick + 1;
 
@@ -36,6 +42,7 @@ public class ActionHandler {
         if (nextAction != null) {
             Printer.printDebug("Sending action {}", nextAction);
             nextAction.send(client, player);
+            postActionDelayTicks = nextAction.getPostActionDelayTicks();
         } else {
             lookAction = null;
         }
