@@ -115,6 +115,9 @@ public class GeneralPlacementGuide extends PlacementGuide {
             BlockHitResult blockHitResult = new BlockHitResult(hitVec.get(), validSide.get().getOpposite(),
                     state.blockPos.offset(validSide.get()), false);
 
+            Printer.printDebug("getPlacementContext(): target={} item={} validSide={} hitVec={} shift={}",
+                    state.blockPos, requiredItem.get(), validSide.get(), hitVec.get(), requiresShift);
+
             return new PrinterPlacementContext(player, blockHitResult, requiredItem.get(), requiredSlot,
                     lookDirection.orElse(null), requiresShift);
         } catch (Exception e) {
