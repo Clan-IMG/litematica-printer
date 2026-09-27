@@ -5,8 +5,9 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerInputC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.Hand;
 import net.minecraft.util.PlayerInput;
 import net.minecraft.util.math.Direction;
@@ -24,7 +25,7 @@ public class PrepareAction extends Action {
         Direction lookDirection = context.lookDirection;
 
         if (lookDirection != null && lookDirection.getAxis().isHorizontal()) {
-            this.yaw = lookDirection.asRotation();
+            this.yaw = lookDirection.getPositiveHorizontalDegrees();
         } else {
             this.modifyYaw = false;
         }
@@ -56,20 +57,25 @@ public class PrepareAction extends Action {
         if (itemStack != null && client.interactionManager != null) {
             PlayerInventory inventory = player.getInventory();
 
-            // This thing is straight from MinecraftClient#doItemPick()
+            // Vanilla's own PlayerInventory#addPickBlock and
+            // ClientPlayerInteractionManager#pickFromInventory were removed upstream
+            // (creative pick-block is now server-authoritative via PickItemFromBlockC2SPacket,
+            // which needs a real world block and can't conjure an arbitrary ItemStack), so both
+            // are reimplemented locally below using their old, still-available building blocks.
             if (player.getAbilities().creativeMode) {
-                inventory.addPickBlock(itemStack);
+                addPickBlock(inventory, itemStack);
                 client.interactionManager.clickCreativeStack(player.getStackInHand(Hand.MAIN_HAND),
-                        36 + inventory.selectedSlot);
+                        36 + inventory.getSelectedSlot());
                 inventorySelectionChanged = true;
             } else if (slot != -1) {
                 if (PlayerInventory.isValidHotbarIndex(slot)) {
-                    if (inventory.selectedSlot != slot) {
-                        inventory.selectedSlot = slot;
+                    if (inventory.getSelectedSlot() != slot) {
+                        inventory.setSelectedSlot(slot);
                         inventorySelectionChanged = true;
                     }
                 } else {
-                    client.interactionManager.pickFromInventory(slot);
+                    client.interactionManager.clickSlot(player.playerScreenHandler.syncId, slot,
+                            inventory.getSelectedSlot(), SlotActionType.SWAP, player);
                     inventorySelectionChanged = true;
                 }
             }
@@ -85,12 +91,40 @@ public class PrepareAction extends Action {
             player.networkHandler.sendPacket(packet);
         }
 
+        // Sneaking is no longer a discrete ClientCommandC2SPacket mode; it's part of the
+        // continuous PlayerInput record, sent explicitly here instead of waiting for the
+        // client's own per-tick input sync so the server sees it before the next action.
         if (context.shouldSneak) {
             player.input.playerInput = new PlayerInput(player.input.playerInput.forward(), player.input.playerInput.backward(), player.input.playerInput.left(), player.input.playerInput.right(), player.input.playerInput.jump(), true, player.input.playerInput.sprint());
-            player.networkHandler.sendPacket(new ClientCommandC2SPacket(player, ClientCommandC2SPacket.Mode.PRESS_SHIFT_KEY));
         } else {
             player.input.playerInput = new PlayerInput(player.input.playerInput.forward(), player.input.playerInput.backward(), player.input.playerInput.left(), player.input.playerInput.right(), player.input.playerInput.jump(), false, player.input.playerInput.sprint());
-            player.networkHandler.sendPacket(new ClientCommandC2SPacket(player, ClientCommandC2SPacket.Mode.RELEASE_SHIFT_KEY));
+        }
+        player.networkHandler.sendPacket(new PlayerInputC2SPacket(player.input.playerInput));
+    }
+
+    /**
+     * Reimplementation of the removed PlayerInventory#addPickBlock: selects the given stack in
+     * the hotbar, or conjures it into a swappable hotbar slot if the player doesn't have it.
+     */
+    private static void addPickBlock(PlayerInventory inventory, ItemStack stack) {
+        int slot = inventory.getSlotWithStack(stack);
+
+        if (PlayerInventory.isValidHotbarIndex(slot)) {
+            inventory.setSelectedSlot(slot);
+        } else if (slot == -1) {
+            int hotbarSlot = inventory.getSwappableHotbarSlot();
+            inventory.setSelectedSlot(hotbarSlot);
+
+            if (!inventory.getStack(hotbarSlot).isEmpty()) {
+                int emptySlot = inventory.getEmptySlot();
+                if (emptySlot != -1) {
+                    inventory.setStack(emptySlot, inventory.getStack(hotbarSlot));
+                }
+            }
+
+            inventory.setStack(hotbarSlot, stack);
+        } else {
+            inventory.swapSlotWithHotbar(slot);
         }
     }
 

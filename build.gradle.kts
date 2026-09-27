@@ -1,15 +1,14 @@
 plugins {
-    id("fabric-loom").version("1.8-SNAPSHOT")
+    id("fabric-loom").version("1.17-SNAPSHOT")
     id("maven-publish")
 }
 
 val minecraft_version: String by project
+val minecraft_version_out: String by project
 val mappings_version: String by project
 val fabric_loader_version: String by project
 val fabric_api_version: String by project
 val malilib_version: String by project
-//val litematica_projectid: String by project
-//val litematica_fileid: String by project
 val litematica_version: String by project
 val mod_menu_version: String by project
 
@@ -26,10 +25,11 @@ java {
 repositories {
     mavenLocal()
     mavenCentral()
-    maven("https://masa.dy.fi/maven")
-    //maven("https://www.cursemaven.com")
+    // sakura-ryoko's own maven repo (real releases, not JitPack) for malilib/litematica on 1.21.11+
+    maven("https://masa.dy.fi/maven/sakura-ryoko")
     maven("https://maven.terraformersmc.com/releases/")
-    maven("https://jitpack.io")
+    // transitive dependency of malilib/litematica (conditional-mixin)
+    maven("https://maven.fallenbreath.me/releases")
 }
 
 dependencies {
@@ -39,12 +39,9 @@ dependencies {
 
     modImplementation("net.fabricmc:fabric-loader:${fabric_loader_version}")
     modImplementation("net.fabricmc.fabric-api:fabric-api:${fabric_api_version}")
-    //modImplementation("fi.dy.masa.malilib:malilib-fabric-${malilib_version}")
-    //modImplementation("curse.maven:litematica-${litematica_projectid}:${litematica_fileid}")
 
-    // Sakura's Jitpack
-    modImplementation("com.github.sakura-ryoko:malilib:${malilib_version}")
-    modImplementation("com.github.sakura-ryoko:litematica:${litematica_version}")
+    modImplementation("fi.dy.masa.malilib:malilib-fabric-${minecraft_version_out}:${malilib_version}")
+    modImplementation("fi.dy.masa.litematica:litematica-fabric-${minecraft_version_out}:${litematica_version}")
 
     // For Mod Menu display
     modCompileOnly("com.terraformersmc:modmenu:${mod_menu_version}")

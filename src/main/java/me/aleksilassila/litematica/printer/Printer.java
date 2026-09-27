@@ -58,7 +58,7 @@ public class Printer {
         List<BlockPos> positions = getReachablePositions();
         findBlock:
         for (BlockPos position : positions) {
-            SchematicBlockState state = new SchematicBlockState(player.getWorld(), worldSchematic, position);
+            SchematicBlockState state = new SchematicBlockState(player.getEntityWorld(), worldSchematic, position);
             if (state.targetState.equals(state.currentState) || state.targetState.isAir()) {
                 continue;
             }
@@ -112,13 +112,13 @@ public class Printer {
                 .filter(p ->
                 {
                     Vec3d vec = Vec3d.ofCenter(p);
-                    return this.player.getPos().squaredDistanceTo(vec) > 1
+                    return this.player.getEntityPos().squaredDistanceTo(vec) > 1
                             && this.player.getEyePos().squaredDistanceTo(vec) > 1;
                 })
                 .sorted((a, b) ->
                 {
-                    double aDistance = this.player.getPos().squaredDistanceTo(Vec3d.ofCenter(a));
-                    double bDistance = this.player.getPos().squaredDistanceTo(Vec3d.ofCenter(b));
+                    double aDistance = this.player.getEntityPos().squaredDistanceTo(Vec3d.ofCenter(a));
+                    double bDistance = this.player.getEntityPos().squaredDistanceTo(Vec3d.ofCenter(b));
                     return Double.compare(aDistance, bDistance);
                 }).toList();
     }
